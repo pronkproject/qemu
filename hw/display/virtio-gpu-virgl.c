@@ -22,6 +22,7 @@
 
 #include "ui/egl-helpers.h"
 
+#define VIRGL_RENDERER_UNSTABLE_APIS
 #include <virglrenderer.h>
 
 /*
@@ -68,6 +69,14 @@ static void *
 virgl_get_egl_display(G_GNUC_UNUSED void *cookie)
 {
     return qemu_egl_display;
+}
+#endif
+
+#ifdef CONFIG_GBM
+static int
+virgl_get_video_drm_fd(G_GNUC_UNUSED void *cookie)
+{
+    return qemu_dup(qemu_egl_rn_fd);
 }
 #endif
 
@@ -1455,6 +1464,12 @@ static int virtio_gpu_virgl_init(VirtIOGPU *g)
     }
 #endif
 #if VIRGL_VERSION_MAJOR >= 1
+#ifdef CONFIG_GBM
+    if (qemu_egl_rn_fd >= 0 && qemu_egl_rn_gbm_dev) {
+        virtio_gpu_3d_cbs.get_drm_fd = virgl_get_video_drm_fd;
+        flags |= VIRGL_RENDERER_USE_VIDEO;
+    }
+#endif
     if (virtio_gpu_venus_enabled(g->parent_obj.conf)) {
         flags |= VIRGL_RENDERER_VENUS | VIRGL_RENDERER_RENDER_SERVER;
     }
